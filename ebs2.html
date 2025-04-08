@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>EBS Flipbook - Tam Ekran</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #e0e0e0;
+      font-family: sans-serif;
+    }
+
+    #flipbook-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .page {
+      width: 48vw;
+      height: 90vh;
+      margin: 0 1vw;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+      background: white;
+      transition: transform 0.6s ease;
+      transform-origin: center;
+      border-radius: 6px;
+    }
+
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 0 10px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <input type="file" id="pdf-upload" accept="application/pdf" style="position: absolute; top: 20px; left: 20px; z-index: 999;">
+
+  <div id="flipbook-container">
+    <div class="page"><canvas id="left-page"></canvas></div>
+    <div class="page"><canvas id="right-page"></canvas></div>
+
+    <div id="controls">
+      <button id="prev-btn">⬅️ Geri</button>
+      <button id="next-btn">İleri ➡️</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>
+    let pdfDoc = null;
+    let currentPage = 1;
+
+    const leftCanvas = document.getElementById('left-page');
+    const rightCanvas = document.getElementById('right-page');
+    const leftCtx = leftCanvas.getContext('2d');
+    const rightCtx = rightCanvas.getContext('2d');
+
+    document.getElementById('pdf-upload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file || file.type !== "application/pdf") return;
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        const typedarray = new Uint8Array(this.result);
+        pdfjsLib.getDocument(typedarray).promise.then(function (pdf) {
+          pdfDoc = pdf;
+          currentPage = 1;
+          renderPages();
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function renderPage(canvas, context, pageNum) {
+      pdfDoc.getPage(pageNum).then(page => {
+        const viewport = page.getViewport({ scale: 1.5 });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+        page.render(renderContext);
+      }).catch(() => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+      });
+    }
+
+    function renderPages() {
+      renderPage(leftCanvas, leftCtx, currentPage);
+      if (currentPage + 1 <= pdfDoc.numPages) {
+        renderPage(rightCanvas, rightCtx, currentPage + 1);
+      } else {
+        rightCtx.clearRect(0, 0, rightCanvas.width, rightCanvas.height);
+      }
+    }
+
+    document.getElementById('next-btn').addEventListener('click', () => {
+      if (currentPage + 2 <= pdfDoc.numPages) {
+        currentPage += 2;
+        renderPages();
+      }
+    });
+
+    document.getElementById('prev-btn').addEventListener('click', () => {
+      if (currentPage - 2 >= 1) {
+        currentPage -= 2;
+        renderPages();
+      }
+    });
+  </script>
+
+</body>
+</html>
